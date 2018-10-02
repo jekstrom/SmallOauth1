@@ -1,0 +1,20 @@
+﻿<?xml version="1.0"?>
+<package>
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>Johan Otterud; James Ekstrom</authors>
+    <owners>James Ekstrom</owners>
+    <licenseUrl>https://raw.githubusercontent.com/jekstrom/SmallOauth1/master/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/jekstrom/SmallOauth1</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>A small, super easy to use OAuth 1.0a library with support for the full OAuth flow. Supports both .NET Framework and .NET Core (by using .NET Standard).</description>
+    <releaseNotes></releaseNotes>
+    <copyright>Copyright © 2018 James Ekstrom</copyright>
+    <tags></tags>
+    <dependencies>
+      <dependency id="BouncyCastle.NetCore" version="(1.8.3,)" />
+    </dependencies>
+  </metadata>
+</package>

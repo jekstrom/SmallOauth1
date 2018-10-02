@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27703.2000
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmallOauth1", "SmallOauth1\SmallOauth1.csproj", "{0830E458-E88F-4408-917F-97A571A7FEFC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0830E458-E88F-4408-917F-97A571A7FEFC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0830E458-E88F-4408-917F-97A571A7FEFC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0830E458-E88F-4408-917F-97A571A7FEFC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0830E458-E88F-4408-917F-97A571A7FEFC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {789C565F-281F-4821-9B8A-6C1D6D108068}
+	EndGlobalSection
+EndGlobal
