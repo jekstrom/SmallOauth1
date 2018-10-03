@@ -2,6 +2,13 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <Authors>James Ekstrom; Johan Otterud</Authors>
+    <Company />
+    <Copyright>Copyright © 2018 James Ekstrom</Copyright>
+    <PackageLicenseUrl>https://raw.githubusercontent.com/jekstrom/SmallOauth1/master/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/jekstrom/SmallOauth1</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/jekstrom/SmallOauth1</RepositoryUrl>
+    <Description>A small, super easy to use OAuth 1.0a library with support for the full OAuth flow. Supports both .NET Framework and .NET Core (by using .NET Standard).</Description>
   </PropertyGroup>
 
   <ItemGroup>

@@ -21,9 +21,83 @@ namespace SmallOauth1
 			_config = config ?? throw new ArgumentNullException(nameof(config));
 		}
 
-		public Task<AccessTokenInfo> GetAccessTokenAsync(string requestToken, string requestTokenSecret, string verifier)
+		public async Task<AccessTokenInfo> GetAccessTokenAsync(string requestToken, string requestTokenSecret, string verifier)
 		{
-			throw new NotImplementedException();
+			/* 6.3.1.  Consumer Requests an Access Token
+			
+			The Request Token and Token Secret MUST be exchanged for an Access Token and Token Secret.
+			To request an Access Token, the Consumer makes an HTTP request to the Service Provider's Access Token URL. The Service Provider documentation specifies the HTTP method for this request, and HTTP POST is RECOMMENDED. The request MUST be signed per Signing Requests, and contains the following parameters:
+
+			oauth_consumer_key:			The Consumer Key.
+			oauth_token:				The Request Token obtained previously.
+			oauth_signature_method:		The signature method the Consumer used to sign the request.
+			oauth_signature:			The signature as defined in Signing Requests.
+			oauth_timestamp:			As defined in Nonce and Timestamp.
+			oauth_nonce:				As defined in Nonce and Timestamp.
+			oauth_version:				OPTIONAL. If present, value MUST be 1.0 . Service Providers MUST assume the protocol version to be 1.0 if this parameter is not present. Service Providers' response to non-1.0 value is left undefined.
+			oauth_verifier:				The verification code received from the Service Provider in the Service Provider Directs the User Back to the Consumer step.
+			No additional Service Provider specific parameters are allowed when requesting an Access Token to ensure all Token related information is present prior to seeking User approval.
+			*/
+
+			var requestParameters = new[]
+			{
+				$"oauth_consumer_key={_config.ConsumerKey}",
+				$"oauth_token={requestToken}",
+				$"oauth_signature_method={_config.SignatureMethod}",
+				$"oauth_timestamp={GetTimeStamp()}",
+				$"oauth_nonce={GetNonce()}",
+				$"oauth_version=1.0",
+				$"oauth_verifier={verifier}"
+			};
+
+			// Appendix A.5.1. Generating Signature Base String
+			var signatureBaseString = GetSignatureBaseString("POST", _config.AccessTokenUrl, requestParameters);
+
+			// Appendix A.5.2. Calculating Signature Value
+			string signature = String.Empty;
+			if (_config.SignatureMethod.ToLower().Contains("rsa"))
+			{
+				signature = GetRSASignature(signatureBaseString, _config.SigningKey);
+			}
+			else
+			{
+				signature = GetSignature(signatureBaseString, _config.ConsumerSecret, requestTokenSecret);
+			}
+
+			var responseText = await PostData(_config.AccessTokenUrl, $"{ConcatList(requestParameters, "&")}&oauth_signature={Uri.EscapeDataString(signature)}");
+
+			if (!responseText.ToLowerInvariant().Contains("oauth_token"))
+			{
+				throw new Exception($"An error occured when trying to retrieve access token, the response was: {responseText}{Environment.NewLine}{Environment.NewLine}Did you remember to navigate to and complete the authorization page?");
+			}
+
+			if (!string.IsNullOrEmpty(responseText))
+			{
+				string oauthToken = null;
+				string oauthTokenSecret = null;
+				var keyValPairs = responseText.Split('&');
+
+				for (var i = 0; i < keyValPairs.Length; i++)
+				{
+					var splits = keyValPairs[i].Split('=');
+					switch (splits[0])
+					{
+						case "oauth_token":
+							oauthToken = splits[1];
+							break;
+						case "oauth_token_secret":
+							oauthTokenSecret = splits[1];
+							break;
+					}
+				}
+
+				return new AccessTokenInfo
+				{
+					AccessToken = oauthToken,
+					AccessTokenSecret = oauthTokenSecret
+				};
+			}
+			throw new Exception("Empty response text when getting the access token");
 		}
 
 		public AuthenticationHeaderValue GetAuthorizationHeader(string accessToken, string accessTokenSecret, string url, HttpMethod httpMethod)
@@ -70,11 +144,11 @@ namespace SmallOauth1
 
 			var requestParameters = new List<string>
 			{
-				"oauth_consumer_key=" + _config.ConsumerKey,
-				"oauth_token=" + accessToken,
-				"oauth_signature_method=" + _config.SignatureMethod,
-				"oauth_timestamp=" + timeStamp,
-				"oauth_nonce=" + nonce,
+				$"oauth_consumer_key={_config.ConsumerKey}",
+				$"oauth_token={accessToken}",
+				$"oauth_signature_method={_config.SignatureMethod}",
+				$"oauth_timestamp={timeStamp}",
+				$"oauth_nonce={nonce}",
 				"oauth_version=1.0"
 			};
 
@@ -85,7 +159,9 @@ namespace SmallOauth1
 				var parameters = ExtractQueryParameters(requestUri.Query);
 
 				foreach (var kvp in parameters)
-					requestParameters.Add(kvp.Key + "=" + kvp.Value);
+				{
+					requestParameters.Add($"{kvp.Key}={kvp.Value}");
+				}
 
 				// TODO: url = GetNormalizedUrl(requestUri);
 			}
@@ -107,13 +183,13 @@ namespace SmallOauth1
 			// Same as request parameters but uses a quote (") character around its values and is comma separated
 			var requestParametersForHeader = new List<string>
 			{
-				"oauth_consumer_key=\"" + _config.ConsumerKey + "\"",
-				"oauth_token=\"" + accessToken + "\"",
-				"oauth_signature_method=\"" + _config.SignatureMethod + "\"",
-				"oauth_timestamp=\"" + timeStamp + "\"",
-				"oauth_nonce=\"" + nonce + "\"",
-				"oauth_version=\"1.0\"",
-				"oauth_signature=\"" + Uri.EscapeDataString(signature) + "\""
+				$"oauth_consumer_key=\"{_config.ConsumerKey}\"",
+				$"oauth_token=\"{accessToken}\"",
+				$"oauth_signature_method=\"{_config.SignatureMethod}\"",
+				$"oauth_timestamp=\"{timeStamp}\"",
+				$"oauth_nonce=\"{nonce}\"",
+				$"oauth_version=\"1.0\"",
+				$"oauth_signature=\"{Uri.EscapeDataString(signature)}\""
 			};
 
 			return ConcatList(requestParametersForHeader, ",");
@@ -131,9 +207,87 @@ namespace SmallOauth1
 			return url;
 		}
 
-		public Task<RequestTokenInfo> GetRequestTokenAsync()
+		public async Task<RequestTokenInfo> GetRequestTokenAsync()
 		{
-			throw new NotImplementedException();
+			/*6.1.1.  Consumer Obtains a Request Token
+
+			To obtain a Request Token, the Consumer sends an HTTP request to the Service Provider's Request Token URL. The Service Provider documentation specifies the HTTP method for this request, and HTTP POST is RECOMMENDED. The request MUST be signed and contains the following parameters:
+
+			oauth_consumer_key:				The Consumer Key.
+			oauth_signature_method:			The signature method the Consumer used to sign the request.
+			oauth_signature:				The signature as defined in Signing Requests.
+			oauth_timestamp:				As defined in Nonce and Timestamp.
+			oauth_nonce:					As defined in Nonce and Timestamp.
+			oauth_version:					OPTIONAL. If present, value MUST be 1.0 . Service Providers MUST assume the protocol version to be 1.0 if this parameter is not present. Service Providers' response to non-1.0 value is left undefined.
+			oauth_callback:					An absolute URL to which the Service Provider will redirect the User back when the Obtaining User Authorization step is completed. If the Consumer is unable to receive callbacks or a callback URL has been established via other means, the parameter value MUST be set to oob (case sensitive), to indicate an out-of-band configuration.
+			Additional parameters:
+			Any additional parameters, as defined by the Service Provider. */
+
+			// See 6.1.1
+			var requestParameters = new List<string>
+			{
+				$"oauth_consumer_key={_config.ConsumerKey}",
+				$"oauth_signature_method={_config.SignatureMethod}",
+				$"oauth_timestamp={GetTimeStamp()}",
+				$"oauth_nonce={GetNonce()}",
+				$"oauth_version=1.0",
+				$"oauth_callback=oob" //TODO: Add parameter so it can be used :)
+			};
+
+			// Appendix A.5.1. Generating Signature Base String
+			var signatureBaseString = GetSignatureBaseString("POST", _config.RequestTokenUrl, requestParameters);
+
+			// Appendix A.5.2. Calculating Signature Value
+			string signature = String.Empty;
+			if (_config.SignatureMethod.ToLower().Contains("rsa"))
+			{
+				signature = GetRSASignature(signatureBaseString, _config.SigningKey);
+			}
+			else
+			{
+				signature = GetSignature(signatureBaseString, _config.ConsumerSecret);
+			}
+
+			// 6.1.2.Service Provider Issues an Unauthorized Request Token
+			var responseText = await PostData(_config.RequestTokenUrl, $"{ConcatList(requestParameters, "&")}&oauth_signature={Uri.EscapeDataString(signature)}");
+
+			if (!string.IsNullOrEmpty(responseText))
+			{
+				//oauth_token:
+				//The Request Token.
+				//	oauth_token_secret:
+				//The Token Secret.
+
+				string oauthToken = null;
+				string oauthTokenSecret = null;
+
+				var keyValPairs = responseText.Split('&');
+
+				for (var i = 0; i < keyValPairs.Length; i++)
+				{
+					var splits = keyValPairs[i].Split('=');
+					switch (splits[0])
+					{
+						case "oauth_token":
+							oauthToken = splits[1];
+							break;
+						case "oauth_token_secret":
+							oauthTokenSecret = splits[1];
+							break;
+							// TODO: Handle this one?
+							//case "xoauth_request_auth_url":
+							//	oauthAuthorizeUrl = splits[1];
+							//	break;
+					}
+				}
+
+				return new RequestTokenInfo
+				{
+					RequestToken = oauthToken,
+					RequestTokenSecret = oauthTokenSecret
+				};
+			}
+			throw new Exception("Empty response text when getting the request token");
 		}
 
 		private string GetNonce()
@@ -152,15 +306,21 @@ namespace SmallOauth1
 		private Dictionary<string, string> ExtractQueryParameters(string queryString)
 		{
 			if (queryString.StartsWith("?"))
+			{
 				queryString = queryString.Remove(0, 1);
+			}
 
 			var result = new Dictionary<string, string>();
 
 			if (string.IsNullOrEmpty(queryString))
+			{
 				return result;
+			}
 
 			foreach (var s in queryString.Split('&'))
+			{
 				if (!string.IsNullOrEmpty(s) && !s.StartsWith("oauth_"))
+				{
 					if (s.IndexOf('=') > -1)
 					{
 						var temp = s.Split('=');
@@ -170,11 +330,13 @@ namespace SmallOauth1
 					{
 						result.Add(s, string.Empty);
 					}
+				}
+			}
 
 			return result;
 		}
 
-		private string GetSignatureBaseString(string method, string url, List<string> requestParameters)
+		private string GetSignatureBaseString(string method, string url, IReadOnlyCollection<string> requestParameters)
 		{
 			// It's very important that we "normalize" the parameters, that is sort them:
 			//9.1.1.Normalize Request Parameters
@@ -205,13 +367,8 @@ namespace SmallOauth1
 			Is included in the Signature Base String as:
 
 							http://example.com/resource
- */
-
-
-			url = ConstructRequestUrl(url);
-
-			return method.ToUpper() + "&" + Uri.EscapeDataString(url) + "&" +
-				   Uri.EscapeDataString(requestParametersSortedString);
+			*/
+			return $"{method.ToUpper()}&{Uri.EscapeDataString(ConstructRequestUrl(url))}&{Uri.EscapeDataString(requestParametersSortedString)}";
 		}
 
 		private string GetRSASignature(string stringToSign, string privateKey)
@@ -241,10 +398,9 @@ namespace SmallOauth1
 			*/
 
 			var hmacsha1 = new HMACSHA1();
+			string secret = (string.IsNullOrEmpty(tokenSecret) ? "" : Uri.EscapeDataString(tokenSecret));
 
-			var key = Uri.EscapeDataString(consumerSecret) + "&" + (string.IsNullOrEmpty(tokenSecret)
-						  ? ""
-						  : Uri.EscapeDataString(tokenSecret));
+			var key = $"{Uri.EscapeDataString(consumerSecret)}&{secret}";
 			hmacsha1.Key = Encoding.ASCII.GetBytes(key);
 
 			var dataBuffer = Encoding.ASCII.GetBytes(signatureBaseString);
@@ -267,6 +423,7 @@ namespace SmallOauth1
 		{
 			var sb = new StringBuilder();
 			foreach (var s in source)
+			{
 				if (sb.Length == 0)
 				{
 					sb.Append(s);
@@ -276,6 +433,8 @@ namespace SmallOauth1
 					sb.Append(separator);
 					sb.Append(s);
 				}
+			}
+
 			return sb.ToString();
 		}
 
@@ -283,13 +442,41 @@ namespace SmallOauth1
 		{
 			var uri = new Uri(url, UriKind.Absolute);
 			var normUrl = string.Format("{0}://{1}", uri.Scheme, uri.Host);
-			if (!(uri.Scheme == "http" && uri.Port == 80 ||
-				  uri.Scheme == "https" && uri.Port == 443))
+			if (NotHttpPort(uri))
+			{
 				normUrl += ":" + uri.Port;
+			}
 
 			normUrl += uri.AbsolutePath;
 
 			return normUrl;
+		}
+
+		private bool NotHttpPort(Uri uri)
+		{
+			return !(uri.Scheme == "http" && uri.Port == 80 ||
+				  uri.Scheme == "https" && uri.Port == 443);
+		}
+
+		private async Task<string> PostData(string url, string postData)
+		{
+			try
+			{
+				var httpClient = new HttpClient();
+				httpClient.MaxResponseContentBufferSize = int.MaxValue;
+				httpClient.DefaultRequestHeaders.ExpectContinue = false;
+				var requestMsg = new HttpRequestMessage();
+				requestMsg.Content = new StringContent(postData);
+				requestMsg.Method = new HttpMethod("POST");
+				requestMsg.RequestUri = new Uri(url, UriKind.Absolute);
+				requestMsg.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
+				var response = await httpClient.SendAsync(requestMsg);
+				return await response.Content.ReadAsStringAsync();
+			}
+			catch
+			{
+				throw;
+			}
 		}
 	}
 }
