@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace SmallOauth1.Utilities
 {
-    class SmallOauthMessageHandler : DelegatingHandler
+    public class SmallOauthMessageHandler : DelegatingHandler
 	{
 		private string _accessToken;
 		private string _accessTokenSecret;
