@@ -1,0 +1,1 @@
+dotnet pack SmallOauth1\SmallOauth1.csproj --configuration release -o .
